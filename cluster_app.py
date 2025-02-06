@@ -11,25 +11,39 @@ def main():
         This app allows you to upload a CSV file and specify:
         - The name of the column containing the resource names (e.g. **Resources**).
         - The CSV delimiter (comma or semicolon).
-        
-        The app then:
+
+        It then:
         - Creates and displays a clustermap for the resources.
         - Computes hierarchical clusters for both resources (rows) and projects (columns).
         - Reorders the data accordingly.
-        - Adds an additional row (for project clusters) and a new sequential index column.
+        - Adds an additional row (with project cluster labels) and a new sequential index column.
         - Lets you preview and download the final CSV.
+
+        **Optional:** You can also upload a CSS file to have its content displayed.
         """
     )
 
-    # File uploader, resource column name input, and delimiter selector.
-    uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+    # File uploaders
+    uploaded_csv = st.file_uploader("Upload CSV File", type=["csv"])
+    css_file = st.file_uploader("Upload CSS File (Optional)", type=["css"])
+    
+    # Display CSS file content if uploaded
+    if css_file is not None:
+        try:
+            css_content = css_file.read().decode("utf-8")
+            st.markdown("### Uploaded CSS File Content")
+            st.code(css_content, language="css")
+        except Exception as e:
+            st.error(f"Error reading CSS file: {e}")
+
+    # Input for resource column name and delimiter choice.
     resource_col = st.text_input("Enter the name of the resource column", value="Resources")
     delimiter = st.radio("Select CSV Delimiter", options=[",", ";"], index=1)
 
-    if uploaded_file is not None:
+    if uploaded_csv is not None:
         try:
             # Read CSV using the selected delimiter and Latin-1 encoding.
-            df = pd.read_csv(uploaded_file, encoding='latin-1', sep=delimiter)
+            df = pd.read_csv(uploaded_csv, encoding='latin-1', sep=delimiter)
         except Exception as e:
             st.error(f"Error reading CSV file: {e}")
             return
@@ -39,7 +53,7 @@ def main():
             st.error(f"The column '{resource_col}' was not found in the CSV file.")
             return
 
-        # Set the resource column as index and fill missing values.
+        # Set the resource column as the index and fill missing values.
         df = df.set_index(resource_col)
         df = df.fillna(0)
 
@@ -82,7 +96,7 @@ def main():
         # -------------------------------
         try:
             df_final = df_reordered.reset_index()
-            # Ensure 'Cluster' column appears right after the resource column.
+            # Ensure that the 'Cluster' column appears right after the resource column.
             cols = list(df_final.columns)
             if 'Cluster' in cols:
                 cols.remove('Cluster')
@@ -98,9 +112,9 @@ def main():
         # 5. Cluster the Projects and Assign Project Cluster Labels
         # -------------------------------
         try:
-            # Remove the resource cluster column.
+            # Remove the resource cluster column to focus on projects.
             project_df = df_reordered.drop('Cluster', axis=1)
-            # Transpose so each project becomes a row.
+            # Transpose so that each project becomes a row.
             project_data = project_df.T
             Z_proj = linkage(project_data, method='ward')
             proj_cluster_labels = fcluster(Z_proj, t=0.8, criterion='inconsistent')
@@ -140,7 +154,7 @@ def main():
             empty_row = pd.DataFrame([[""] * len(df_final.columns)], columns=df_final.columns)
             for col in ordered_project_cols:
                 empty_row.at[0, col] = project_cluster_row.at['Cluster_project', col]
-            # Label the resource column for this row.
+            # Mark the resource column for this additional row.
             empty_row.at[0, resource_cols[1]] = "Project_Cluster"
             df_final_with_proj = pd.concat([empty_row, df_final], ignore_index=True)
         except Exception as e:
