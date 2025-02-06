@@ -25,7 +25,7 @@ def main():
 
     # File uploader, resource column name input, and delimiter selector.
     uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
-    resource_col = st.text_input("Enter the name of the resource column", value="Resources")
+    resource_col = st.text_input("Enter the name of the first column", value="Resources")
     delimiter = st.radio("Select CSV Delimiter", options=[",", ";"], index=1)
 
     if uploaded_file is not None:
