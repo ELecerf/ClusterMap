@@ -11,14 +11,15 @@ def main():
         This app allows you to upload a CSV file and specify:
         - The name of the column containing the resource names (e.g. **Resources**).
         - The CSV delimiter (comma or semicolon).
-        
-        The app then:
-        - Displays the uploaded CSV file.
-        - Creates and displays a clustermap for the resources.
-        - Computes hierarchical clusters for both resources (rows) and projects (columns).
-        - Reorders the data accordingly.
-        - Adds an additional row (for project clusters) and a new sequential index column.
-        - Lets you preview and download the final CSV.
+        - Clustering thresholds for both resources (lines) and projects (columns).
+
+        The app will:
+        - Display the uploaded CSV file.
+        - Create and display a clustermap for the resources.
+        - Compute hierarchical clusters for both resources and projects.
+        - Reorder the data accordingly.
+        - Add an additional row (for project clusters) and a new sequential index column.
+        - Let you preview and download the final CSV.
         """
     )
 
@@ -42,6 +43,12 @@ def main():
             st.error(f"The column '{resource_col}' was not found in the CSV file.")
             return
 
+        # Let the user choose clustering thresholds using sliders.
+        line_threshold = st.slider("Line Clustering Threshold (for Resources)", 
+                                   min_value=0.0, max_value=10.0, value=0.9, step=0.01)
+        col_threshold = st.slider("Column Clustering Threshold (for Projects)", 
+                                  min_value=0.0, max_value=10.0, value=0.8, step=0.01)
+
         # Set the resource column as index and fill missing values.
         df = df.set_index(resource_col)
         df = df.fillna(0)
@@ -64,7 +71,7 @@ def main():
         # -------------------------------
         try:
             Z = linkage(df, method='ward')
-            resource_cluster_labels = fcluster(Z, t=0.9, criterion='inconsistent')
+            resource_cluster_labels = fcluster(Z, t=line_threshold, criterion='inconsistent')
             df['Cluster'] = resource_cluster_labels
         except Exception as e:
             st.error(f"Error computing resource clusters: {e}")
@@ -106,7 +113,7 @@ def main():
             # Transpose so each project becomes a row.
             project_data = project_df.T
             Z_proj = linkage(project_data, method='ward')
-            proj_cluster_labels = fcluster(Z_proj, t=0.8, criterion='inconsistent')
+            proj_cluster_labels = fcluster(Z_proj, t=col_threshold, criterion='inconsistent')
             project_data['Cluster_project'] = proj_cluster_labels
         except Exception as e:
             st.error(f"Error clustering projects: {e}")
